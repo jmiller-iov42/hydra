@@ -18,6 +18,8 @@ fn main() {
         Err(e) => fatal(&e),
     };
     hydraui::action_log::init(hydraui::action_log::file_for(hydra.paths.root()));
+    // A crash's reason goes to hydraui.log, not only to the terminal that started hydraui.
+    hydraui::action_log::record_panics();
     hydraui::action_log::write(format!("hydraui {} started", hydraui::version::VERSION));
     let (ui, ui_problems) = config::load(&hydra.paths);
     let (palette, colour_problems) = Palette::from_config(&ui.colors);

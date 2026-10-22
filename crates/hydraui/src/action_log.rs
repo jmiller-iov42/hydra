@@ -42,6 +42,44 @@ fn set_aside_if_big(path: &Path, max: u64) {
 
 /// Appends `text` to the log, stamped with the local time and this process's id. Does nothing
 /// before `init`; a log that can't be written is skipped silently.
+/// What a panic leaves in the log: the thread, where, the message, then the backtrace.
+pub fn panic_entry(message: &str, location: Option<&str>, thread: &str, backtrace: &str) -> String {
+    let at = location.map_or(String::new(), |l| format!(" at {l}"));
+    let mut text = format!("PANIC in thread {thread}{at}: {message}");
+    if !backtrace.trim().is_empty() {
+        text.push('\n');
+        text.push_str(backtrace.trim_end());
+    }
+    text
+}
+
+/// Writes every panic to the log with its backtrace, then lets the default hook print it too:
+/// a crash otherwise leaves its reason only in whichever terminal started hydraui.
+pub fn record_panics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let payload = info.payload();
+        let message = payload
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(no message)".to_string());
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()));
+        let current = std::thread::current();
+        let thread = current.name().unwrap_or("unnamed");
+        let backtrace = std::backtrace::Backtrace::force_capture().to_string();
+        write(panic_entry(
+            &message,
+            location.as_deref(),
+            thread,
+            &backtrace,
+        ));
+        previous(info);
+    }));
+}
+
 pub fn write(text: impl AsRef<str>) {
     let Some(path) = file() else { return };
     let entry = entry(&now(), std::process::id(), text.as_ref());
@@ -110,6 +148,26 @@ pub(crate) fn now() -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_panic_is_written_with_where_it_happened() {
+        let text = panic_entry(
+            "index out of bounds: the len is 2 but the index is 3",
+            Some("crates/hydraui/src/runs.rs:42:9"),
+            "main",
+            "   0: hydraui::runs::Runs::begin",
+        );
+        assert!(
+            text.starts_with(
+                "PANIC in thread main at crates/hydraui/src/runs.rs:42:9: index out of bounds"
+            ),
+            "{text}"
+        );
+        assert!(text.contains("hydraui::runs::Runs::begin"), "{text}");
+        let bare = panic_entry("boom", None, "hydraui-mcp", "");
+        assert_eq!(bare, "PANIC in thread hydraui-mcp: boom");
+    }
+
     use super::*;
 
     #[test]
