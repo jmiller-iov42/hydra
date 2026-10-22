@@ -3025,6 +3025,7 @@ dependencies = [
  "tempfile",
  "tiny_http",
  "toml 0.8.23",
+ "toml_edit 0.22.27",
  "tree-sitter",
  "tree-sitter-language",
  "ureq",
