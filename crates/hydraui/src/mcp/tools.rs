@@ -29,7 +29,18 @@ are any, and you are not already in a worktree of your own, do your card's work 
 so you don't change files under them: `git worktree add ../<repo>-worktrees/<slug> -b \
 task/<slug>`, work and commit there (the board is shared, so tasks_verify still finds your card), \
 and tell the user the branch to merge.
-- You cannot move cards into Pickup or Done, edit, reorder or delete them: those are the user's.";
+- You cannot move cards into Pickup or Done, edit, reorder or delete them: those are the user's.
+
+Pipeline runs take one ticket through stages, each a fresh Claude session that ends with a \
+confidence rating (the Pipeline view in hydraui).
+- As the orchestrator (when the user asks you to run a ticket through a pipeline) you coordinate \
+and never do a stage's work yourself: run_start, then stage_start for each stage in order. Wait \
+to be told a stage reported (hydraui types it into your prompt), or check run_status. A stage \
+starts only after the one before it cleared its bar. When a run needs a person, tell the user \
+why and wait: nothing you can call moves it on.
+- As a stage session (your first prompt says so) do only that stage: stage_brief says what it \
+is and what the previous stage handed over. End with stage_report, once, with honest evidence \
+and reasons for and against; report blocked rather than guess.";
 
 /// The `tools` array of `tools/list`.
 pub fn list() -> Value {
@@ -95,6 +106,12 @@ pub fn list() -> Value {
             "inputSchema": none,
         },
     ])
+    .as_array()
+    .expect("a json array")
+    .iter()
+    .cloned()
+    .chain(super::run_tools::schemas())
+    .collect()
 }
 
 pub struct Outcome {
@@ -107,7 +124,7 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    fn ok(text: String) -> Self {
+    pub(super) fn ok(text: String) -> Self {
         Outcome {
             text,
             is_error: false,
@@ -116,7 +133,7 @@ impl Outcome {
         }
     }
 
-    fn err(text: impl Into<String>) -> Self {
+    pub(super) fn err(text: impl Into<String>) -> Self {
         Outcome {
             text: text.into(),
             is_error: true,
@@ -428,7 +445,12 @@ mod tests {
                 "tasks_add",
                 "tasks_take",
                 "tasks_verify",
-                "tasks_mine"
+                "tasks_mine",
+                "run_start",
+                "stage_start",
+                "run_status",
+                "stage_brief",
+                "stage_report"
             ]
         );
         assert_eq!(names, hydra_providers::claude_files::HYDRAUI_TOOLS);
