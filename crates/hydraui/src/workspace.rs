@@ -909,7 +909,11 @@ impl Workspace {
             .env_of(id)
             .is_some_and(|env| self.all_tasks.remove(env))
             | self.settings.take().is_some()
-            | self.projects.take().is_some();
+            | self.projects.take().is_some()
+            // Any page over the terminals closes: picking a session or pipeline shows it (§91).
+            | self.history.take().is_some()
+            | self.tickets.take().is_some()
+            | self.actions.take().is_some();
         let left = left | self.reveal_in_list(id, cx);
         if self.envs.show(id) || left {
             self.shown_changed(window, cx);

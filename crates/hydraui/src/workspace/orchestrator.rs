@@ -1821,7 +1821,13 @@ impl Workspace {
             .collect();
         let reg = server::lock(sv.registry());
         let root = self.hydra.paths.root();
-        tokens
+        // A pipeline is at work when any of its orchestrators holds an open ticket (§91).
+        let busy_files: std::collections::HashSet<&String> = tokens
+            .iter()
+            .filter(|(_, token)| !reg.runs.open_of(token).is_empty())
+            .filter_map(|(id, _)| self.orchestrators.get(id))
+            .collect();
+        let cards: Vec<(PaneId, Card, Vec<PaneId>)> = tokens
             .iter()
             .filter_map(|(id, token)| {
                 // Tickets under the orchestrator, one or several: the card is the pipeline's, and
@@ -1868,7 +1874,20 @@ impl Workspace {
                     .collect();
                 Some((*id, self.card_now(run), panes))
             })
-            .collect()
+            .collect();
+        // Pipelines at work first, the rest below, each half as before (core spec §91).
+        crate::pipeline_card::active_first(
+            cards
+                .into_iter()
+                .map(|c| {
+                    let busy = self
+                        .orchestrators
+                        .get(&c.0)
+                        .is_some_and(|f| busy_files.contains(f));
+                    (c, busy)
+                })
+                .collect(),
+        )
     }
 
     /// `run`'s card, in its pipeline's colour as the file has it now, so a change in Settings

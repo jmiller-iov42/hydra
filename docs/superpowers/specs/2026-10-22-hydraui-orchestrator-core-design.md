@@ -1700,3 +1700,8 @@ When a Slack or Linear trigger's look failed without stopping it, the card said 
 - **On hover.** The whole error shows on hover over the line.
 - **Clearing.** The next look that works clears it.
 - **Stopped triggers** are unchanged (§65): several failures in a row still stop the trigger, with Try again or Connect Slack.
+
+## 91. Pipelines at work first, and a sidebar click leaves the page (added 2026-11-13)
+
+- **Ordering.** In the sidebar's Pipelines list, pipelines with an open ticket come first, and the rest come below, each half in the order it was. A pipeline running several tickets at once counts as at work if any of them is open. The list re-sorts as tickets open and finish.
+- **Leaving a page.** Clicking a session or a pipeline in the sidebar used to leave History, Tickets or Actions on screen until you clicked that page's button again, which confused people. Settings and Projects already closed. Now any of those pages closes and the session or pipeline shows. That covers every way of picking one, all of them a person's choice: the sidebar, a notification, Resume session, and so on.

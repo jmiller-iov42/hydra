@@ -395,8 +395,26 @@ pub fn meter(week_used: Option<f64>, floor: u8) -> Option<Meter> {
     })
 }
 
+/// Pipelines with work going first, then the rest (core spec §91), each half in the order it
+/// came: `items` with whether each is active.
+pub fn active_first<T>(items: Vec<(T, bool)>) -> Vec<T> {
+    let (active, idle): (Vec<_>, Vec<_>) = items.into_iter().partition(|(_, a)| *a);
+    active.into_iter().chain(idle).map(|(t, _)| t).collect()
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn pipelines_at_work_come_first_each_half_in_order() {
+        let got = active_first(vec![
+            ("emails", false),
+            ("reviews", true),
+            ("triage", false),
+            ("tickets", true),
+        ]);
+        assert_eq!(got, ["reviews", "tickets", "emails", "triage"]);
+        assert!(active_first::<u8>(vec![]).is_empty());
+    }
 
     #[test]
     fn a_step_checking_again_reads_as_at_work_not_needing_you() {
